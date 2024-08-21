@@ -7,7 +7,7 @@ import { materialColor, materialPointWidth } from '../accessors/MaterialNode.js'
 import { modelViewMatrix } from '../accessors/ModelNode.js';
 import { positionGeometry } from '../accessors/PositionNode.js';
 import { smoothstep } from '../math/MathNode.js';
-import { tslFn, vec2, vec4 } from '../shadernode/ShaderNode.js';
+import { Fn, vec2, vec4 } from '../shadernode/ShaderNode.js';
 import { uv } from '../accessors/UVNode.js';
 import { viewport } from '../display/ViewportNode.js';
 
@@ -20,8 +20,6 @@ class InstancedPointsNodeMaterial extends NodeMaterial {
 	constructor( params = {} ) {
 
 		super();
-
-		this.normals = false;
 
 		this.lights = false;
 
@@ -41,12 +39,20 @@ class InstancedPointsNodeMaterial extends NodeMaterial {
 
 	}
 
+	setup( builder ) {
+
+		this.setupShaders();
+
+		super.setup( builder );
+
+	}
+
 	setupShaders() {
 
 		const useAlphaToCoverage = this.alphaToCoverage;
 		const useColor = this.useColor;
 
-		this.vertexNode = tslFn( () => {
+		this.vertexNode = Fn( () => {
 
 			//vUv = uv;
 			varying( vec2(), 'vUv' ).assign( uv() ); // @TODO: Analyze other way to do this
@@ -81,7 +87,7 @@ class InstancedPointsNodeMaterial extends NodeMaterial {
 
 		} )();
 
-		this.fragmentNode = tslFn( () => {
+		this.fragmentNode = Fn( () => {
 
 			const vUv = varying( vec2(), 'vUv' );
 
@@ -149,7 +155,7 @@ class InstancedPointsNodeMaterial extends NodeMaterial {
 		if ( this.useAlphaToCoverage !== value ) {
 
 			this.useAlphaToCoverage = value;
-			this.setupShaders();
+			this.needsUpdate = true;
 
 		}
 

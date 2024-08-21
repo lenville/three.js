@@ -1,7 +1,7 @@
 import TempNode from '../core/TempNode.js';
 import { sub, mul, div } from './OperatorNode.js';
 import { addNodeClass } from '../core/Node.js';
-import { addNodeElement, nodeObject, nodeProxy, float, vec2, vec3, vec4, tslFn } from '../shadernode/ShaderNode.js';
+import { addNodeElement, nodeObject, nodeProxy, float, vec2, vec3, vec4, Fn } from '../shadernode/ShaderNode.js';
 
 class MathNode extends TempNode {
 
@@ -139,7 +139,7 @@ class MathNode extends TempNode {
 					b.build( builder, type )
 				);
 
-			} else if ( method === MathNode.STEP ) {
+			} else if ( isWebGL && method === MathNode.STEP ) {
 
 				params.push(
 					a.build( builder, builder.getTypeLength( a.getNodeType( builder ) ) === 1 ? 'float' : inputType ),
@@ -330,7 +330,7 @@ export const refract = nodeProxy( MathNode, MathNode.REFRACT );
 export const smoothstep = nodeProxy( MathNode, MathNode.SMOOTHSTEP );
 export const faceForward = nodeProxy( MathNode, MathNode.FACEFORWARD );
 
-export const rand = tslFn( ( [ uv ] ) => {
+export const rand = Fn( ( [ uv ] ) => {
 
 	const a = 12.9898, b = 78.233, c = 43758.5453;
 	const dt = dot( uv.xy, vec2( a, b ) ), sn = mod( dt, PI );

@@ -6,15 +6,13 @@ import { attribute } from '../core/AttributeNode.js';
 import { output, diffuseColor, emissive, varyingProperty } from '../core/PropertyNode.js';
 import { materialAlphaTest, materialColor, materialOpacity, materialEmissive, materialNormal, materialLightMap, materialAOMap } from '../accessors/MaterialNode.js';
 import { modelViewProjection } from '../accessors/ModelViewProjectionNode.js';
-import { transformedNormalView, normalLocal } from '../accessors/NormalNode.js';
+import { normalLocal } from '../accessors/NormalNode.js';
 import { instance } from '../accessors/InstanceNode.js';
 import { batch } from '../accessors/BatchNode.js';
 import { materialReference } from '../accessors/MaterialReferenceNode.js';
-import { positionLocal, positionView } from '../accessors/PositionNode.js';
+import { positionLocal } from '../accessors/PositionNode.js';
 import { skinningReference } from '../accessors/SkinningNode.js';
 import { morphReference } from '../accessors/MorphNode.js';
-import { texture } from '../accessors/TextureNode.js';
-import { cubeTexture } from '../accessors/CubeTextureNode.js';
 import { lightsNode } from '../lighting/LightsNode.js';
 import { mix } from '../math/MathNode.js';
 import { float, vec3, vec4 } from '../shadernode/ShaderNode.js';
@@ -24,7 +22,6 @@ import IrradianceNode from '../lighting/IrradianceNode.js';
 import { depth } from '../display/ViewportDepthNode.js';
 import { cameraLogDepth } from '../accessors/CameraNode.js';
 import { clipping, clippingAlpha } from '../accessors/ClippingNode.js';
-import { faceDirection } from '../display/FrontFacingNode.js';
 
 const NodeMaterials = new Map();
 
@@ -42,7 +39,6 @@ class NodeMaterial extends Material {
 
 		this.fog = true;
 		this.lights = false;
-		this.normals = true;
 
 		this.lightsNode = null;
 		this.envNode = null;
@@ -83,6 +79,8 @@ class NodeMaterial extends Material {
 
 	setup( builder ) {
 
+		builder.context.setupNormal = () => this.setupNormal( builder );
+
 		// < VERTEX STAGE >
 
 		builder.addStack();
@@ -102,8 +100,6 @@ class NodeMaterial extends Material {
 		if ( this.depthWrite === true ) this.setupDepth( builder );
 
 		if ( this.fragmentNode === null ) {
-
-			if ( this.normals === true ) this.setupNormal( builder );
 
 			this.setupDiffuseColor( builder );
 			this.setupVariants( builder );
@@ -208,11 +204,21 @@ class NodeMaterial extends Material {
 
 		let depthNode = this.depthNode;
 
-		if ( depthNode === null && renderer.logarithmicDepthBuffer === true ) {
+		if ( depthNode === null ) {
 
-			const fragDepth = modelViewProjection().w.add( 1 );
+			const mrt = renderer.getMRT();
 
-			depthNode = fragDepth.log2().mul( cameraLogDepth ).mul( 0.5 );
+			if ( mrt && mrt.has( 'depth' ) ) {
+
+				depthNode = mrt.get( 'depth' );
+
+			} else if ( renderer.logarithmicDepthBuffer === true ) {
+
+				const fragDepth = modelViewProjection().w.add( 1 );
+
+				depthNode = fragDepth.log2().mul( cameraLogDepth ).mul( 0.5 );
+
+			}
 
 		}
 
@@ -337,7 +343,6 @@ class NodeMaterial extends Material {
 
 	}
 
-
 	setupOutgoingLight() {
 
 		return ( this.lights === true ) ? vec3( 0 ) : diffuseColor.rgb;
@@ -346,25 +351,11 @@ class NodeMaterial extends Material {
 
 	setupNormal() {
 
-		// NORMAL VIEW
-
-		if ( this.flatShading === true ) {
-
-			const normalNode = positionView.dFdx().cross( positionView.dFdy() ).normalize();
-
-			transformedNormalView.assign( normalNode.mul( faceDirection ) );
-
-		} else {
-
-			const normalNode = this.normalNode ? vec3( this.normalNode ) : materialNormal;
-
-			transformedNormalView.assign( normalNode.mul( faceDirection ) );
-
-		}
+		return this.normalNode ? vec3( this.normalNode ) : materialNormal;
 
 	}
 
-	setupEnvironment( builder ) {
+	setupEnvironment( /*builder*/ ) {
 
 		let node = null;
 
@@ -374,11 +365,7 @@ class NodeMaterial extends Material {
 
 		} else if ( this.envMap ) {
 
-			node = this.envMap.isCubeTexture ? cubeTexture( this.envMap ) : texture( this.envMap );
-
-		} else if ( builder.environmentNode ) {
-
-			node = builder.environmentNode;
+			node = this.envMap.isCubeTexture ? materialReference( 'envMap', 'cubeTexture' ) : materialReference( 'envMap', 'texture' );
 
 		}
 

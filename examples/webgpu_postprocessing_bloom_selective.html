@@ -74,19 +74,22 @@
 
 			// post processing
 
+			const postProcessing = new THREE.PostProcessing( renderer );
+			postProcessing.outputColorTransform = false;
+
 			const scenePass = pass( scene, camera );
+
 			scenePass.setMRT( mrt( {
 				output,
 				bloomIntensity: float( 0 ) // default bloom intensity
 			} ) );
 
 			const outputPass = scenePass.getTextureNode();
+
 			const bloomIntensityPass = scenePass.getTextureNode( 'bloomIntensity' );
 
 			const bloomPass = outputPass.mul( bloomIntensityPass ).bloom();
 
-			const postProcessing = new THREE.PostProcessing( renderer );
-			postProcessing.outputColorTransform = false;
 			postProcessing.outputNode = outputPass.add( bloomPass ).renderOutput();
 
 			// controls
@@ -114,7 +117,7 @@
 
 					const material = intersects[ 0 ].object.material;
 
-					const bloomIntensity = material.mrtNode.getNode( 'bloomIntensity' );
+					const bloomIntensity = material.mrtNode.get( 'bloomIntensity' );
 					bloomIntensity.value = bloomIntensity.value === 0 ? 1 : 0;
 
 				}

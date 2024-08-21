@@ -3,7 +3,6 @@ import NodeAttribute from './NodeAttribute.js';
 import NodeVarying from './NodeVarying.js';
 import NodeVar from './NodeVar.js';
 import NodeCode from './NodeCode.js';
-import NodeKeywords from './NodeKeywords.js';
 import NodeCache from './NodeCache.js';
 import ParameterNode from './ParameterNode.js';
 import FunctionNode from '../code/FunctionNode.js';
@@ -113,7 +112,6 @@ class NodeBuilder {
 		this.currentFunctionNode = null;
 
 		this.context = {
-			keywords: new NodeKeywords(),
 			material: this.material
 		};
 
@@ -125,9 +123,11 @@ class NodeBuilder {
 		this.shaderStage = null;
 		this.buildStage = null;
 
+		this.useComparisonMethod = false;
+
 	}
 
-	getBingGroupsCache() {
+	getBindGroupsCache() {
 
 		let bindGroupsCache = rendererCache.get( this.renderer );
 
@@ -171,7 +171,7 @@ class NodeBuilder {
 
 	_getBindGroup( groupName, bindings ) {
 
-		const bindGroupsCache = this.getBingGroupsCache();
+		const bindGroupsCache = this.getBindGroupsCache();
 
 		//
 
@@ -197,14 +197,15 @@ class NodeBuilder {
 
 			if ( bindGroup === undefined ) {
 
-				bindGroup = new BindGroup( groupName, bindingsArray );
+				bindGroup = new BindGroup( groupName, bindingsArray, this.bindingsIndexes[ groupName ].group, bindingsArray );
+
 				bindGroupsCache.set( bindingsArray, bindGroup );
 
 			}
 
 		} else {
 
-			bindGroup = new BindGroup( groupName, bindingsArray );
+			bindGroup = new BindGroup( groupName, bindingsArray, this.bindingsIndexes[ groupName ].group, bindingsArray );
 
 		}
 
@@ -399,7 +400,6 @@ class NodeBuilder {
 
 		const context = { ...this.context };
 
-		delete context.keywords;
 		delete context.material;
 
 		return this.context;

@@ -11,16 +11,16 @@ import { mix, fract } from '../math/MathNode.js';
 import { add } from '../math/OperatorNode.js';
 import { Color } from '../../math/Color.js';
 import { DepthTexture } from '../../textures/DepthTexture.js';
-import { tslFn } from '../shadernode/ShaderNode.js';
+import { Fn } from '../shadernode/ShaderNode.js';
 import { LessCompare, WebGPUCoordinateSystem } from '../../constants.js';
 
-const BasicShadowMap = tslFn( ( { depthTexture, shadowCoord } ) => {
+const BasicShadowMap = Fn( ( { depthTexture, shadowCoord } ) => {
 
 	return texture( depthTexture, shadowCoord.xy ).compare( shadowCoord.z );
 
 } );
 
-const PCFShadowMap = tslFn( ( { depthTexture, shadowCoord, shadow } ) => {
+const PCFShadowMap = Fn( ( { depthTexture, shadowCoord, shadow } ) => {
 
 	const depthCompare = ( uv, compare ) => texture( depthTexture, uv ).compare( compare );
 
@@ -59,7 +59,7 @@ const PCFShadowMap = tslFn( ( { depthTexture, shadowCoord, shadow } ) => {
 
 } );
 
-const PCFSoftShadowMap = tslFn( ( { depthTexture, shadowCoord, shadow } ) => {
+const PCFSoftShadowMap = Fn( ( { depthTexture, shadowCoord, shadow } ) => {
 
 	const depthCompare = ( uv, compare ) => texture( depthTexture, uv ).compare( compare );
 
@@ -222,12 +222,13 @@ class AnalyticLightNode extends LightingNode {
 
 			}
 
-			const shadowNode = frustumTest.cond( filterFn( { depthTexture, shadowCoord, shadow } ), float( 1 ) );
+			const shadowColor = texture( shadowMap.texture, shadowCoord );
+			const shadowNode = frustumTest.select( filterFn( { depthTexture, shadowCoord, shadow } ), float( 1 ) );
 
 			this.shadowMap = shadowMap;
 
 			this.shadowNode = shadowNode;
-			this.shadowColorNode = shadowColorNode = this.colorNode.mul( mix( 1, shadowNode, shadowIntensity ) );
+			this.shadowColorNode = shadowColorNode = this.colorNode.mul( mix( 1, shadowNode.rgb.mix( shadowColor, 1 ), shadowIntensity.mul( shadowColor.a ) ) );
 
 			this.baseColorNode = this.colorNode;
 
@@ -265,6 +266,10 @@ class AnalyticLightNode extends LightingNode {
 
 		const { shadowMap, light } = this;
 		const { renderer, scene, camera } = frame;
+
+
+		const depthVersion = shadowMap.depthTexture.version;
+		this._depthVersionCached = depthVersion;
 
 		const currentOverrideMaterial = scene.overrideMaterial;
 
@@ -314,7 +319,21 @@ class AnalyticLightNode extends LightingNode {
 
 	updateBefore( frame ) {
 
-		this.updateShadow( frame );
+		const shadow = this.light.shadow;
+
+		const needsUpdate = shadow.needsUpdate || shadow.autoUpdate;
+
+		if ( needsUpdate ) {
+
+			this.updateShadow( frame );
+
+			if ( this.shadowMap.depthTexture.version === this._depthVersionCached ) {
+
+				shadow.needsUpdate = false;
+
+			}
+
+		}
 
 	}
 
